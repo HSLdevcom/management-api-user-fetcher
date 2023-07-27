@@ -1,0 +1,13 @@
+{
+    "bindings": [
+      {
+        "authLevel": "function",
+        "type": "httpTrigger",
+        "direction": "in",
+        "name": "req",
+        "route": "FetchUserIds/{product}",
+        "methods": ["get"]
+      }
+    ]
+  }
+  

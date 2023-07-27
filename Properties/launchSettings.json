@@ -1,0 +1,9 @@
+{
+  "profiles": {
+    "management_api_user_fetcher": {
+      "commandName": "Project",
+      "commandLineArgs": "--port 7122",
+      "launchBrowser": false
+    }
+  }
+}
