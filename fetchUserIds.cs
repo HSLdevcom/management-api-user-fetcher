@@ -10,6 +10,7 @@ using Microsoft.Azure.WebJobs;
 using Microsoft.Azure.WebJobs.Extensions.Http;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 
 public static class FetchUserIds
 {
@@ -39,7 +40,8 @@ public static class FetchUserIds
             var subscriptionId = Environment.GetEnvironmentVariable("SUB_ID");
             var resourceGroup = Environment.GetEnvironmentVariable("RG");
             var apimName = Environment.GetEnvironmentVariable("APIM_NAME");
-            var ownerId = await GetProductSubscriptionOwnerIdAsync(azureToken, subscriptionId, resourceGroup, apimName, product);
+            var ownerId = await GetProductSubscriptionOwnerIdAsync(azureToken, subscriptionId, resourceGroup, apimName, product, log);
+
             if (string.IsNullOrEmpty(ownerId))
             {
                 return new NotFoundObjectResult($"Product '{product}' not found ");
@@ -81,9 +83,42 @@ public static class FetchUserIds
         return accessToken;
     }
 
+    private static List<string> handleUserIds(string responseBody, string product, List<String> users )
+     {
+        var subscriptions = JsonConvert.DeserializeObject<SubscriptionListResult>(responseBody);
+        var subProducts = subscriptions?.Value?.FindAll(s => s.properties.scope.Contains(product));
+        if (subProducts != null)
+        {
+            foreach (Subscription sub in subProducts)
+            {
+                int i = sub.properties.OwnerId.LastIndexOf('/');
+                if(i >= 0 && i < sub.properties.OwnerId.Length) {
+                    string id = sub.properties.OwnerId.Substring(i + 1);
+                    users.Add(id);
+                }
+            }
+        }
+        return users;
+    }
 
-    private static async Task<string> GetProductSubscriptionOwnerIdAsync(string azureToken, string subscriptionId, string resourceGroup, string apimName, string product)
+    private static async Task<List<string>> handleResponse(string response, string product, List<String> users, HttpClient client, ILogger log)
     {
+        handleUserIds(response, product, users);
+        JObject jsonObj = JObject.Parse(response);
+        string nextLink = (string)jsonObj["nextLink"];
+        if(!string.IsNullOrEmpty(nextLink)) {
+            var newResponse = await client.GetAsync(nextLink);
+
+            if( newResponse.IsSuccessStatusCode) {
+                var responseBody = await newResponse.Content.ReadAsStringAsync();
+               return await handleResponse(responseBody, product, users, client, log);
+            }
+        }
+        return users;
+    }
+    private static async Task<string> GetProductSubscriptionOwnerIdAsync(string azureToken, string subscriptionId, string resourceGroup, string apimName, string product, ILogger log)
+    {
+        List<String> returnStr = new List<string>();
         using (var client = new HttpClient())
         {
             client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", azureToken);
@@ -94,23 +129,9 @@ public static class FetchUserIds
             if (response.IsSuccessStatusCode)
             {
                 var responseBody = await response.Content.ReadAsStringAsync();
+                returnStr = await handleResponse(responseBody, product, returnStr, client, log);
+                return JsonConvert.SerializeObject(returnStr);
 
-                var subscriptions = JsonConvert.DeserializeObject<SubscriptionListResult>(responseBody);
-                List<String> returnStr = new List<string>();
-                var subProducts = subscriptions?.Value?.FindAll(s => s.properties.scope.Contains(product));
-                if (subProducts != null)
-                {
-                    foreach (Subscription sub in subProducts) 
-                    {
-                        int i = sub.properties.OwnerId.LastIndexOf('/');
-                        if(i >= 0 && i < sub.properties.OwnerId.Length) {
-                            string id = sub.properties.OwnerId.Substring(i + 1);
-                            returnStr.Add(id);
-                        }
-                    }
-                    return JsonConvert.SerializeObject(returnStr);
-
-                }
             }
 
             return null;
@@ -118,7 +139,7 @@ public static class FetchUserIds
     }
 }
     public class Subscription
-    {   
+    {
         public string type {get; set;}
         public string name {get; set;}
 
@@ -126,7 +147,7 @@ public static class FetchUserIds
         public Properties properties { get; set; }
     }
 
-    public class Properties 
+    public class Properties
     {
      public string OwnerId {get; set;}
      public string scope {get; set;}
