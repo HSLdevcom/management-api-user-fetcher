@@ -41,7 +41,6 @@ public static class FetchUserIds
             var resourceGroup = Environment.GetEnvironmentVariable("RG");
             var apimName = Environment.GetEnvironmentVariable("APIM_NAME");
             var ownerId = await GetProductSubscriptionOwnerIdAsync(azureToken, subscriptionId, resourceGroup, apimName, product, log);
-
             if (string.IsNullOrEmpty(ownerId))
             {
                 return new NotFoundObjectResult($"Product '{product}' not found ");
