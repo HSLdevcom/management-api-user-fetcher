@@ -7,6 +7,14 @@
         "name": "req",
         "route": "FetchUserIds/{product}",
         "methods": ["get"]
+      },
+      {
+        "authLevel": "function",
+        "type": "httpTrigger",
+        "direction": "in",
+        "name": "req",
+        "route": "FetchProducts",
+        "methods": ["get"]
       }
     ]
   }
