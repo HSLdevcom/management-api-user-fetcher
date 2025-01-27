@@ -1,24 +1,26 @@
-using System;
-using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Azure.WebJobs;
-using Microsoft.Azure.WebJobs.Extensions.Http;
+using Microsoft.Azure.Functions.Worker;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Logging;
-using System.Net.Http;
 using System.Net.Http.Headers;
 
 
 namespace Digitransit.Function
 {
-    public static class FetchProducts
+    public class FetchProducts
     {
-        [FunctionName("FetchProducts")]
-        public static async Task<IActionResult> Run(
-            [HttpTrigger(AuthorizationLevel.Function, "get", Route = "FetchProducts")] HttpRequest req,
-            ILogger log)
+
+        private readonly ILogger<FetchProducts> _logger;
+
+        public FetchProducts(ILogger<FetchProducts> logger) {
+            _logger = logger;
+        }
+
+        [Function("FetchProducts")]
+        public async Task<IActionResult> Run(
+            [HttpTrigger(AuthorizationLevel.Function, "get", Route = "FetchProducts")] HttpRequest req)
         {
-        log.LogInformation("C# HTTP trigger function processed a request.");
+        _logger.LogInformation("C# HTTP trigger function processed a request.");
 
         string resourceGroup =  Environment.GetEnvironmentVariable("RG");
         string apimName = Environment.GetEnvironmentVariable("APIM_NAME");
@@ -41,7 +43,7 @@ namespace Digitransit.Function
         }
         else
         {
-            log.LogError($"API call failed with status code: {response.StatusCode}");
+            _logger.LogError($"API call failed with status code: {response.StatusCode}");
             return new StatusCodeResult((int)response.StatusCode);
         }
     }
