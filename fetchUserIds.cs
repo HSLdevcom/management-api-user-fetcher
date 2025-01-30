@@ -1,26 +1,26 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Net.Http;
 using System.Net.Http.Headers;
-using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Azure.WebJobs;
-using Microsoft.Azure.WebJobs.Extensions.Http;
+using Microsoft.Azure.Functions.Worker;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
-public static class FetchUserIds
+public class FetchUserIds
 {
-    [FunctionName("FetchUserIds")]
-    public static async Task<IActionResult> Run(
+
+    private readonly ILogger<FetchUserIds> _logger;
+
+    public FetchUserIds(ILogger<FetchUserIds> logger) {
+        _logger = logger;
+    }
+
+    [Function("FetchUserIds")]
+    public async Task<IActionResult> Run(
         [HttpTrigger(AuthorizationLevel.Function, "get", Route = "FetchUserIds/{product}")] HttpRequest req,
-        string product,
-        ILogger log)
+        string product)
     {
-        log.LogInformation("C# HTTP trigger function processed a request.");
+        _logger.LogInformation("C# HTTP trigger function processed a request.");
 
         if (string.IsNullOrEmpty(product))
         {
@@ -40,7 +40,7 @@ public static class FetchUserIds
             var subscriptionId = Environment.GetEnvironmentVariable("SUB_ID");
             var resourceGroup = Environment.GetEnvironmentVariable("RG");
             var apimName = Environment.GetEnvironmentVariable("APIM_NAME");
-            var ownerId = await GetProductSubscriptionOwnerIdAsync(azureToken, subscriptionId, resourceGroup, apimName, product, log);
+            var ownerId = await GetProductSubscriptionOwnerIdAsync(azureToken, subscriptionId, resourceGroup, apimName, product, _logger);
             if (string.IsNullOrEmpty(ownerId))
             {
                 return new NotFoundObjectResult($"Product '{product}' not found ");
